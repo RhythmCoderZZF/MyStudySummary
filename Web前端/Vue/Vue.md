@@ -159,7 +159,7 @@
 
 > 适用于构建单页面应用，基于路由和组件的。类似于Android的`FragmentManager`根据`url`切换组件
 
-**路由懒加载**
+## **路由懒加载**
 
 > 将组件不打包到dist/app.js中，独立分包，实现需要的时候再加载js
 
@@ -184,3 +184,6 @@ const About = () => import('../components/HelloWorld.vue') //懒加载
 
 
 
+
+
+ 

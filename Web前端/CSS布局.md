@@ -11,7 +11,7 @@
 
 **Inline**
 
-1. `padding`、`border`、`margin`在水平方向叠加至宽高，**垂直方向失效**（类似于outline，只会显示但不会排挤其他元素）
+1. `padding`、`border`、`margin`在水平方向叠加至宽高，**垂直方向失效**（类似于`outline`，只会显示但不会排挤其他元素）
 
 ## Flex布局
 
