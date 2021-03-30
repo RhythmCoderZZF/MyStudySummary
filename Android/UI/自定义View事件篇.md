@@ -40,11 +40,35 @@
 
    <img src="pic\image-20210329091054565.png" alt="image-20210329091054565" style="zoom:67%;" />
 
+## 结合源码分析事件传递机制
 
+### 中途不拦截
 
-**结合开发场景分析事件传递机制**
+- B不消费`down`事件，及后续`Move`、`Up`事件传递过程
 
-**A不拦截**
+  ```java
+  // 🚩Down事件 -> A.dispatchTouchEvent() -> 绕过A.onInterceptTouchEvent() -> 遍历出接收事件的Child->👇 
+  if (dispatchTransformedTouchEvent(ev, false, child, idBitsToAssign)) {//-> B.dispatchTouchEvent()，返回false代表未消费
+   }
+  
+  
+    if (mFirstTouchTarget == null) {//mFirstTouchTarget = null,轮到A处理DOWN事件
+                  handled = dispatchTransformedTouchEvent(ev, canceled, null,
+                          TouchTarget.ALL_POINTER_IDS);//交给A.onTouchEvent()去处理事件，返回值决定handled的值
+    } 
+  return handled
+      
+  /* —————————————————————————————————————————————————————————————————————————————————————————————————— */    
+      
+  // 🚩Move UP事件 -> A.dispatchTouchEvent() -> 绕过A.onInterceptTouchEvent() -> 跳过遍历（只有Down才遍历）->👇
+  if (mFirstTouchTarget == null) {//mFirstTouchTarget = null,轮到A处理Move、Up事件
+                  handled = dispatchTransformedTouchEvent(ev, canceled, null,
+                          TouchTarget.ALL_POINTER_IDS);//交给A.onTouchEvent()去处理事件，返回值决定handled的值
+    }
+  return handled
+  ```
+
+  小结：B未消费`Down`事件，`mFirstTouchTarget`为空，就轮到A.`onTouchEvent()执行`，之后的`Move`和`Up`事件是否传给A取决于A.`onTouchEvent`是否消费`Down`事件。
 
 - 若B消费`down`事件，及后续`move、up`事件传递过程
 
@@ -95,31 +119,8 @@
   >
   > 之后的`Move`和`Up`事件直接通过`mFirstTouchTarget`传递给B。（即使B未消费`Move`、`Up`事件，事件也会分发给B）
 
-- B不消费`down`事件，及后续`Move`、`Up`事件传递过程
 
-  ```java
-  // 🚩Down事件 -> A.dispatchTouchEvent() -> 绕过A.onInterceptTouchEvent() -> 遍历出接收事件的Child->👇 
-  if (dispatchTransformedTouchEvent(ev, false, child, idBitsToAssign)) {//-> B.dispatchTouchEvent()，返回false代表未消费
-   }
-  
-  
-    if (mFirstTouchTarget == null) {//mFirstTouchTarget = null,轮到A处理DOWN事件
-                  handled = dispatchTransformedTouchEvent(ev, canceled, null,
-                          TouchTarget.ALL_POINTER_IDS);//交给A.onTouchEvent()去处理事件，返回值决定handled的值
-    } 
-  return handled
-      
-  /* —————————————————————————————————————————————————————————————————————————————————————————————————— */    
-      
-  // 🚩Move UP事件 -> A.dispatchTouchEvent() -> 绕过A.onInterceptTouchEvent() -> 跳过遍历（只有Down才遍历）->👇
-  if (mFirstTouchTarget == null) {//mFirstTouchTarget = null,轮到A处理Move、Up事件
-                  handled = dispatchTransformedTouchEvent(ev, canceled, null,
-                          TouchTarget.ALL_POINTER_IDS);//交给A.onTouchEvent()去处理事件，返回值决定handled的值
-    }
-  return handled
-  ```
-
-  小结：B未消费`Down`事件，`mFirstTouchTarget`为空，就轮到A.`onTouchEvent()执行`，之后的`Move`和`Up`事件是否传给A取决于A.`onTouchEvent`是否消费`Down`事件。
+### 中途拦截Down
 
 **A要拦截事件**
 
@@ -150,7 +151,9 @@
   }
   ```
 
-  小结：A拦截`Down`事件导致不会遍历child，`mFirstTouchTarget`为空，就轮到A.`onTouchEvent()执行`。之后的`Move`和`Up`事件不会再进入A.`onInterceptTouchEvent`并且是否传给A取决于A.`onTouchEvent`是否消费`Down`事件。
+  小结：A拦截`Down`事件导致不会遍历child，`mFirstTouchTarget`为空，就轮到A.`onTouchEvent()执行`。之后的`Move`和`Up`事件也不会再进入A.`onInterceptTouchEvent`。
+
+### 中途拦截Move
 
 - A开始不拦截`Down`，B消费`Down`事件，之后A再拦截`Move`、`Up`事件
 
@@ -205,13 +208,13 @@
               }
   ```
 
-  小结：B消费`Down`事件后，之后的`Move、Up`A依旧有机会拦截，一旦拦截就会向B发送一个`Cancel`事件，并清空mFirstTouchTarget。之后的事件就只会传递给A。
+  小结：B消费`Down`事件后，之后的`Move、Up`A依旧有机会拦截，一旦拦截就会向B发送一个`Cancel`事件，并清空`mFirstTouchTarget`。之后的事件就只会传递给A。
 
 ------
 
 ## requestDisallowInterceptTouchEvent
 
-> 禁止**所有父view**拦截事件
+> 子View来调用该函数，禁止**所有父view**拦截`Move`、`Up`事件。
 
 ```java
 if (actionMasked == MotionEvent.ACTION_DOWN || mFirstTouchTarget != null) {//关键的条件
@@ -228,20 +231,118 @@ if (actionMasked == MotionEvent.ACTION_DOWN || mFirstTouchTarget != null) {//关
 
 该函数生效的条件：
 
-1. 只能是后续的`move`、`up`事件——`down`事件父`View`要是拦截了都不会给自己调用该函数的机会。
-2. 自身必须消费`down`事件，否则`mFirstTouchTarget = null`。
+1. 只能是后续的`move`、`up`事件——`down`事件父`View`要是拦截了事件传不到`子View`，子View就没机会调该函数了。
+2. 子View必须消费`down`事件，才能使`mFirstTouchTarget != null`。
 
 ------
 
-## 滑动冲突
+## 🚀解决滑动冲突之内外部拦截
 
 **外部拦截法**
 
-> 所有事件都先经过父`View`的拦截，由父`View`决定是否拦截事件
+> 事件得经过`父View`的拦截监控，一旦符合`父View`的逻辑，`父View`就把事件拦截下来。决定权在`父View`的手里
+
+- 父View
 
 ```java
+override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        var intercept = false
+        when (ev.action) {
+            MotionEvent.ACTION_MOVE -> {
+                if ("我要拦截啦") {
+                    intercept = true //🚩重点
+                }
+            }
+        }
+        return intercept
+    }
 
+ override fun onTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+              //此处为拦截后开始我的事件逻辑
+            }
+        }
+        return super.onTouchEvent(ev)
+    }
 ```
+
+- 子View
+
+```java
+override fun onTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                //子View的事件逻辑
+            }
+        }
+        return super.onTouchEvent(ev)
+    }
+```
+
+**内部拦截法**
+
+> 事件得经过`父View`的拦截监控，但是`子View`在`Down`事件就得让`父View`的`监控`失效(`requestDisallowInterceptTouchEvent(true)`)。一旦不符合`子View`的事件逻辑，`子View`就重新让`父View`去拦截事件。决定权在`子View`的手里
+
+- 子View
+
+```java
+override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                parent.requestDisallowInterceptTouchEvent(true) //🚩重点1 ：先不要让父View拦截move事件
+            }
+            MotionEvent.ACTION_MOVE -> {
+                 if ("还是交给父View处理吧") {      //🚩重点2：一旦不符合自己的事件逻辑就交给父View去处理
+                     parent.requestDisallowInterceptTouchEvent(false) 
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                 //子View的事件逻辑
+            }
+        }
+        return super.onTouchEvent(ev)
+    }
+```
+
+- 父View
+
+```java
+override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        return ev.action != MotionEvent.ACTION_DOWN  //🚩重点3 一开始就拦截move、up事件 
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+              //父View的事件逻辑处理
+            }
+        }
+        return super.onTouchEvent(ev)
+    }
+```
+
+
+
+
 
 ------
 
@@ -286,13 +387,13 @@ if (actionMasked == MotionEvent.ACTION_DOWN || mFirstTouchTarget != null) {//关
        }
    ```
 
-   原因：只要`View`消费`Down`事件就会被添加到`TouchTarget`链，没有消费则该`View`和该`View`的子`View`都不在这条链上，后续`move、up`事件就会根据`TouchTarget`中的`View`来传递，它们的返回值不影响事件传递。
+   原因：只要`View`消费`Down`事件就会被添加到`TouchTarget`链。后续`move、up`事件就会根据`TouchTarget`中的`View`来传递，它们的返回值不影响事件传递。
 
 ------
 
 ## ScrollBy和ScrollTo
 
-> 1. `ScrollBy`和`ScrollTo`都是`跟随手势滑动方向的滚动`，和`Canvas`平移方向相反。
+> 1. `ScrollBy`和`ScrollTo`都是`内容跟随手势滑动方向的滚动`，和`Canvas`平移方向相反。如列表，手势向上滑动，内容就往上滑，Canvas就得向下平移来展示底部更多数据。
 >
 > 2. `ScrollTo(100,100)`——`View`内容向右下方移动（100，100）；`ScrollBy(100,100)`——`View`内容**再次**向右下方移动（100，100）
 >
