@@ -4,14 +4,19 @@
 
 ![image-20210317152847409](pic\image-20210317152847409.png)
 
-**Block块**
+块元素（block）
 
 1. `padding`、`border`、`margin`是**另外叠加**到宽高。
 2. 子元素`margin`会并到父元素的`margin`上，而`border`、`padding`只会叠加自己。。。
 
-**Inline**
+行内元素（inline）
 
 1. `padding`、`border`、`margin`在水平方向叠加至宽高，**垂直方向失效**（类似于`outline`，只会显示但不会排挤其他元素）
+2. 宽高失效
+
+行内块（inline-block）
+
+- 在行内元素的基础上有宽高
 
 ## Flex布局
 
@@ -54,10 +59,34 @@
 
 - `flex`：`flex`属性是`flex-grow`, `flex-shrink` 和 `flex-basis`的简写，默认值为`0 1 auto`。后两个属性可选。
 
+## 浮动
 
+> 网页水平布局，元素设置浮动后其会变成`行内块`特性
 
-## API
+### 清除浮动
 
-- outLine：轮廓
-- box-shadow：阴影
+> 容器内部元素都是浮动的，但是不确定有几个。因此父容器需要动态根据子容器来决定自身的高度，此时需要清除浮动
+
+```css
+.clearfix:after,.clearfix:before{//双伪元素清除浮动
+        content: "";
+        display: table;
+    }
+    .clearfix:after{
+        clear: both;
+    }
+    .clearfix{
+        *zoom: 1;
+    }
+```
+
+## 定位
+
+> 标准流＋浮动不足以精确排布控件。定位能指定控件的准确位置，其由`定位模式`＋`边偏移（left、top、right、bottom）`组合实现
+
+### 定位模式
+
+static：标准流
+
+relative：根据原来的位置（不是相对于浏览器和父容器）
 

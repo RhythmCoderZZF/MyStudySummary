@@ -1,18 +1,14 @@
-#### 四大组件之ContentProvider
+# 四大组件之ContentProvider
 
-##### URI与URL
+## [URI与URL](https://blog.csdn.net/qq_32595453/article/details/80563142)
 
-- URI：URI只是一种概念，怎样实现无所谓，只要它是唯一标识就可以了。例如：
+> URI：统一资源标志符。
+>
+> URL：统一资源定位符。URI的子集，主要用在各种WWW客户程序和服务器程序上。
+>
+> **只要能唯一标识资源的就是URI，在URI的基础上给出其资源的访问方式的就是URL**
 
-  > content://com.example.android/quary
-
-- URL：URL是URI的子集，是URI概念的其中一种实现方式。URL是Internet上描述信息资源的字符串，主要用在各种WWW客户程序和服务器程序上。采用URL可以用一种统一的格式来描述各种信息资源，包括文件、服务器的地址和目录等。例如：
-
-> https://blog.csdn.net/qq_32595453/article/details/80563142
-
-一句话：**URI相当于接口，URL是具体的一种实现.。两者都能标示唯一资源，但是URL作为一种实现必然是更详细**
-
-##### 概述
+## 概述
 
 > 使用应用A的 `Context` 中的 `ContentResolver` 对象与B应用的`ContentProvider`进行通信。`ContentResolver`充当调用者；`ContentProvider`充当数据的提供者，两者之间实现Binder通信
 
@@ -20,17 +16,19 @@
 
 
 
-#####  内容URI
+##  内容URI
 
-> 一般`ContentPovider`定义的URI就是指向数据库表，如 `content://user_dictionary/words`。并且可以追加id
+> 要查询内容提供者，你需要以如下格式的URI的形式来指定查询字符串
+>
+> <img src="pic\image-20210310224125099.png" alt="image-20210310224125099" style="zoom:67%;" />
 >
 > ```java
 > ContentUris.withAppendedId(UserDictionary.Words.CONTENT_URI, 4)//content://user_dictionary/words/4
 > ```
 >
-> <img src="pic\image-20210310224125099.png" alt="image-20210310224125099" style="zoom:67%;" />
+> 
 
-##### 实现ContentProvider步骤
+## 实现ContentProvider步骤
 
 1. `Manifest`注册组件并设置`Authority`
 
@@ -48,9 +46,9 @@
        private val mUriMatcher = UriMatcher(UriMatcher.NO_MATCH)
        private lateinit var mDBHelper: MyDatabaseHelper
        companion object {
-           const val PATH_STUDENT = "Student"
+           const val PATH_STUDENT = "Student"  
            const val CODE_STUDENT = 1
-           const val PATH_STUDENT_ID = "Student/#"//*：匹配由任意长度的任何有效字符组成的字符串；#：匹配由任意长度的数字字符组成的字符串
+           const val PATH_STUDENT_ID = "Student/#" //*：匹配由任意长度的任何有效字符组成的字符串；#：匹配由任意长度的数字字符组成的字符串
            const val CODE_STUDENT_ID = 2
        }
    
@@ -71,7 +69,7 @@
    ```kotlin
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
            val db = mDBHelper.writableDatabase
-           when (mUriMatcher.match(uri)) {//1.匹配注册的合法URI对应的CODE
+           when (mUriMatcher.match(uri)) {//匹配注册的合法URI对应的CODE
                CODE_STUDENT -> {
                    return db.query("Student", projection, selection, selectionArgs, null, null, sortOrder)//2.查询
                }
@@ -87,7 +85,7 @@
    
 
    
-##### 使用ContentResolver步骤
+## 使用ContentResolver步骤
 
 1. 定义合法URI指向ContentProvider数据库表
 
