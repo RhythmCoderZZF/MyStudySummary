@@ -208,89 +208,65 @@ git branch -u o/main
 ##### Fetch不带参数的用法
 
 ```bash
-# 将远程仓库所有分支的最新版本全部取回到本地
+# 将远程仓库所有分支的最新版本全部追加到本地对应的分支上
 git fetch 
-# 将远程仓库所有分支的最新版本全部取回到本地（多个远程仓库下指定一个）
+# 指定哪一个远程仓库
 git fetch <remote>
 ```
 
-例如：在分支`main`上执行`git fetch`,则会将远程main的历史提交下载并追加到本地o/main后
+- `git fetch`
 
-<img src="pic\fetch0.png" alt="image-20210423161218952" style="zoom: 67%;" /><img src="pic\fetch.png" alt="image-20210423161124602" style="zoom:67%;" />
-
-上述是单分支映射，多分支fetch如下图：
+远程foo、main的历史提交会下载追加到o/foo、o/main后
 
 <img src="pic\fetch7.png" alt="image-20210424222309708" style="zoom:67%;" /><img src="C:\Users\lenovo\Desktop\MyStudySummary\MyStudySummary\Git\pic\fetch8.png" alt="image-20210424222341438" style="zoom:67%;" />
 
-上面情况是本地main和远程main未发生冲突。然而很多时候本地main已经更新了，远程main被其他小伙伴更新了，此时就会产生冲突。解决冲突的方法如rebase。
-
-例如：git fetch后o/main指向c2，本地main指向c3，c3 c2完全分叉。
+上面情况是本地和远程未发生冲突。然而很多时候本地分支已经更新了，远程分支被其他小伙伴也更新了，此时就会产生冲突。
 
 <img src="pic\fetch1.png" alt="image-20210424165047529" style="zoom:67%;" /><img src="pic\fetch2.png" alt="image-20210424165145300" style="zoom:67%;" />
 
 ##### Fetch带参数的用法
 
 ```bash
-# 将远程仓库指定分支place的最新版本取回到本地对应的分支place上
+# 默认先创建本地origin/place（存在则跳过），将远程仓库指定分支place的最新版本追加到origin/place上。
 git fetch <remote> <place>
-# 将远程仓库指定分支source的最新版本取回到本地对应的分支destination上
+
+# 默认先创建本地destination分支（存在则跳过），将远程仓库指定source节点（或分支）的最新版本追加到destination上(注意source是远程)。
 git fetch <remote> <source> : <destination>
 ```
 
 - `git fetch <remote> <place>`：
 
-例：`git fetch origin foo`将远程仓库分支foo下载并追加到本地仓库分支o/foo上
+例：`git fetch origin foo`
 
 <img src="pic\fetch3.png" alt="image-20210424214943058" style="zoom:67%;" /><img src="pic\fetch4.png" alt="image-20210424215021109" style="zoom:67%;" />
 
 - `git fetch <remote> <source> : <destination>`
 
-例：`git fetch origin foo~1 : bar`将远程仓库foo上一个节点的历史提交下载并追加到本地bar分支上，此时bar并不存在，则git会创建该本地分支。
+例：`git fetch origin foo~1 : bar`
 
 <img src="pic\fetch5.png" alt="image-20210424220431432" style="zoom:67%;" /><img src="C:\Users\lenovo\Desktop\MyStudySummary\MyStudySummary\Git\pic\fetch6.png" alt="image-20210424220506670" style="zoom:67%;" />
-
-#### Pull
-
-```bash
-#下载当前分支跟踪的远程分支的历史提交到本地仓库中,远程分支指向最新节点，本地分支与远程分支merge
-git pull 空/（远程仓库地址/分支名）  
-
-#pull默认是fetch+merge，也可以改为fetch+rebase模式
-git pull --rebase    
-```
-
-Fetch完远程最新代码后经常需要与本地`main`合并（o/main的最新节点和本地main已经不在一条分支上了）。Pull相当于fetch+merge的指令集合。
-
-未pull之前：
-
-<img src="pic\pull.png" alt="image-20210423162654731" style="zoom:67%;" />
-
-pull之后：
-
-<img src="pic\pull1.png" alt="image-20210423163412910" style="zoom:67%;" />
 
 #### Push
 
 ##### Push不带参数的用法
 
 ```bash
-# 把当前HEAD指向的分支推送到远程关联的分支上
+# 把当前HEAD指向的分支推送到远程关联的分支上，注意不会提交其他分支。
 git push
-
-# 删除指定的远程仓库的分支
-git push <远程仓库的别名> :<远程分支名>
-git push <远程仓库的别名> --delete <远程分支名>
 ```
 
 ##### Push带参数的用法
 
 ```bash
-#切到本地仓库中的“main”分支，获取所有的提交，再到远程仓库“origin”中找到“main”分支，将远程仓库中没有的提交记录都添加上去。
-#我们通过“place”参数来告诉 Git 提交记录来自于 main, 要推送到远程仓库中的 main。它实际就是要同步的两个仓库的位置。
+#默认先创建远程仓库place分支和本地origin/place分支（存在则跳过），将本地仓库place分支的历史版本提交到远程仓库place上，之后origin/place指向本地place
 git push <remote> <place>
 
-#git push <remote> <place>中的place是同时指定了提交的本地分支和远程分支，这两个分支名必须相同。若不相同，则需要分别指定本地、远程分支（其中source可以为任意节点，即不需要一定是分支）
-git push origin <source>:<destination>
+#默认先创建远程仓库destination分支和本地origin/destination（存在则跳过），将本地仓库source节点（或分支）的历史版本提交到远程仓库对应的分支destination上(注意source是本地)，之后origin/destination指向本地source
+git push <remote> <source>:<destination>
+
+#删除——远程仓库destination的历史提交（慎用）
+git push <remote> : <destination>
+git push <remote> --delete <destination>
 ```
 
 - `git push <remote> <place>`
@@ -305,13 +281,35 @@ git push origin main
 <img src="C:\Users\lenovo\Desktop\MyStudySummary\MyStudySummary\Git\pic\push.png" alt="image-20210424204905057" style="zoom: 67%;" /><img src="C:\Users\lenovo\Desktop\MyStudySummary\MyStudySummary\Git\pic\push1.png" alt="image-20210424210046441" style="zoom:67%;" />
 而若不追加参数直接使用`git push`则不会成功。因为HEAD当前没有追踪任何分支
 
-- `git push origin <source>:<destination>`
+- `git push origin <source> : <destination>`
 
 例如：`git push o foo^ : main`将本地foo的上一个节点的历史记录推送到远程main分支的后面，若远程main分支不存在，则会创建远程分支main。
 
 <img src="pic\push2.png" alt="image-20210424213018039" style="zoom:67%;" /><img src="C:\Users\lenovo\Desktop\MyStudySummary\MyStudySummary\Git\pic\push3.png" alt="image-20210424213134963" style="zoom:67%;" />
 
+#### Pull
 
+> pull实际上就是fetch+合并的集合指令，其中合并默认用的是merge，当然可以指定rebase。如指令`git pull o foo`等价于`git fetch o foo ; git merge o/foo`(需要格外注意merge的时候HEAD指向的是哪一个节点！)
+
+```bash
+#fetch远程仓库所有分支，本地o/source指向最新分支，当前HEAD指向的节点与对应的分支合并
+git pull  
+
+#pull默认是fetch+merge，也可以改为fetch+rebase模式
+git pull --rebase   
+
+git pull <remote> <place>
+```
+
+Fetch完远程最新代码后经常需要与本地`main`合并（o/main的最新节点和本地main已经不在一条分支上了）。Pull相当于fetch+merge的指令集合。
+
+未pull之前：
+
+<img src="pic\pull.png" alt="image-20210423162654731" style="zoom:67%;" />
+
+pull之后：
+
+<img src="pic\pull1.png" alt="image-20210423163412910" style="zoom:67%;" />
 
 ****
 
