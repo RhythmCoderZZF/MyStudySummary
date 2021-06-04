@@ -331,3 +331,15 @@ git push -u origin master 	//-u 表示本地master分支与远程master关联，
 ```
 
 > git push -u 的含义：https://www.zhihu.com/question/20019419
+
+### git添加.gitignore文件无效
+
+在添加.gitignore文件后，Android Studio 如果没有忽略我们想要忽略的文件，解决方法就是清除一下缓存。
+原因gitignore对已经追踪的文件无效，清除缓存后就可以了。还不行，就从git上重新拉取代码。
+
+```bash
+git rm -r --cached .
+git add .
+git commit -m "clear cached"
+```
+

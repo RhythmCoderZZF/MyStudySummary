@@ -125,11 +125,7 @@ public void dispatchMessage(@NonNull Message msg) {
 2. 移除指定、所有`Message`。Object（表示Data）用于唯一标识
 3. 移除指定、所有`Runnable`和`Message`。Object（表示Data和Token）用于唯一标识
 
-
-
-
-
-
+------
 
 ## Looper
 

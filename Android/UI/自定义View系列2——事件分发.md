@@ -1,36 +1,64 @@
+参考：[反思｜Android 事件拦截机制的设计与实现](https://juejin.cn/post/6844904128397705230)
+
 # 自定义View事件篇
+
+Android的事件分发是典型的责任链设计模式。
+
+责任链模式中需要两个角色——`请求`与`节点`，在事件分发机制中 View充当节点，MotionEvent充当请求；
+
+每个节点必须具备两个行为——请求的`处理`与`分发`，而View中的`dispatchTouchEvent`方法扮演着请求的`处理`与`分发`。
 
 ## 事件传递核心原理8图
 
-### 中途不拦截
+### 不拦截事件
 
-1. 都不消费事件
+消费：onTouchEvent返回true
+
+1. 不消费任何事件
 
    <img src="pic\image-20210329085653526.png" alt="image-20210329085653526" style="zoom:67%;" />
 
-2. 中途有控件消费所有事件
+2. 消费所有事件
 
    <img src="pic\image-20210329085719062.png" alt="image-20210329085719062" style="zoom:67%;" />
 
-3. 中途有控件只消费Down
+3. 只消费Down，不消费Move事件
 
    <img src="pic\image-20210329085832685.png" alt="image-20210329085832685" style="zoom:67%;" />
 
+**小结**：
+
+1. 消费Down后，事件不会回溯
+
+2. 消费Down后，消费不消费Move（Up事件也一样）都不会回溯事件，只影响`Acrivity.onTouchEvent`的接收。
+
+> 这里的回溯特指的是：事件再传递给Parent的onToucnEvent，让Parent去处理事件。实际上程序还会回到Parent去执行，这是递归的特性。
+
 ### 中途拦截Down
 
-1. 中途有控件拦截但最后没有控件消费
+拦截：onInterceptTouchEvent返回true
+
+1. 拦截Down但不消费
 
    <img src="pic\image-20210329090147326.png" alt="image-20210329090147326" style="zoom:67%;" />
 
-2. 中途有控件拦截并消费所有事件
+2. 拦截Down并消费所有事件
 
    <img src="pic\image-20210329090642614.png" alt="image-20210329090642614" style="zoom:67%;" />
 
-3. 中途有控件拦截只消费了Down
+3. 拦截Down且只消费Down
 
    <img src="pic\image-20210329090804101.png" alt="image-20210329090804101" style="zoom:67%;" />
 
+**小结**：
+
+1. 拦截消费Down后，事件不会回溯
+
+2. 拦截消费Down后，消费不消费Move（Up事件也一样）都不会回溯事件，只影响`Acrivity.onTouchEvent`的接收。
+
 ### 中途拦截Move
+
+拦截Move的前提是事件已经被Child给消费了，否则Move都不会经过Parent。
 
 1. 拦截并消费Move
 
@@ -39,6 +67,20 @@
 2. 拦截但不消费Move
 
    <img src="pic\image-20210329091054565.png" alt="image-20210329091054565" style="zoom:67%;" />
+
+**小结**：
+
+拦截Move是最复杂也是开发中最常见的事件冲突解决方案。
+
+1. 由之前得出的结论，Move是否消费只会影响`Acrivity.onTouchEvent`的接收
+2. 拦截Move后，此刻的Move事件会转换成Cancel事件传递给Child通知其——你的事件被拦截了，做好重置工作吧
+3. 之后的Move事件只会传递给拦截事件View的`onTouchEvent`。
+
+### 总结
+
+1. 想要去操控一个View，必须在Down事件传递给他的onTouchEvent返回true，表示消费事件。之后的Move事件才能定位到该View，并传递给他。Move事件的消费与否不影响事件传递。
+2. Down事件传递过程是树的遍历，它属于“排头兵”，一个个的遍历要消费事件的View，因此十分消耗性能；Move事件传递过程是基于Down事件已经探查出的一条消费事件的View链（TouchTargt），它属于“富二代”，伸手就能要到消费事件的View。
+3. Parent拦截掉Down事件会造成Child完全接收不到事件的后果，因此开发中很少去中断Down事件，而是去中断Move事件。
 
 ## 结合源码分析事件传递机制
 
@@ -236,11 +278,11 @@ if (actionMasked == MotionEvent.ACTION_DOWN || mFirstTouchTarget != null) {//关
 
 ------
 
-## 🚀解决滑动冲突之内外部拦截
+## 解决滑动冲突两种方法
 
 **外部拦截法**
 
-> 事件得经过`父View`的拦截监控，一旦符合`父View`的逻辑，`父View`就把事件拦截下来。决定权在`父View`的手里
+> Move事件得经过`父View`的拦截监控，一旦符合`父View`的逻辑，`父View`就把事件拦截下来。决定权在`父View`的手里
 
 - 父View
 
@@ -250,7 +292,7 @@ override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.action) {
             MotionEvent.ACTION_MOVE -> {
                 if ("我要拦截啦") {
-                    intercept = true //🚩重点
+                    intercept = true 
                 }
             }
         }
@@ -270,25 +312,9 @@ override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
     }
 ```
 
-- 子View
-
-```java
-override fun onTouchEvent(ev: MotionEvent): Boolean {
-        when (ev.action) {
-            MotionEvent.ACTION_DOWN -> {
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                //子View的事件逻辑
-            }
-        }
-        return super.onTouchEvent(ev)
-    }
-```
-
 **内部拦截法**
 
-> 事件得经过`父View`的拦截监控，但是`子View`在`Down`事件就得让`父View`的`监控`失效(`requestDisallowInterceptTouchEvent(true)`)。一旦不符合`子View`的事件逻辑，`子View`就重新让`父View`去拦截事件。决定权在`子View`的手里
+> Move事件一开始就被Parent拦下，但是`子View`在`Down`事件就得让`父View`的拦截失效(`requestDisallowInterceptTouchEvent(true)`)。一旦不符合`子View`的事件逻辑，`子View`就重新让`父View`去拦截事件。决定权在`子View`的手里
 
 - 子View
 
@@ -296,10 +322,12 @@ override fun onTouchEvent(ev: MotionEvent): Boolean {
 override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
-                parent.requestDisallowInterceptTouchEvent(true) //🚩重点1 ：先不要让父View拦截move事件
+                //父View拦截失效
+                parent.requestDisallowInterceptTouchEvent(true) 
             }
             MotionEvent.ACTION_MOVE -> {
-                 if ("还是交给父View处理吧") {      //🚩重点2：一旦不符合自己的事件逻辑就交给父View去处理
+                 //一旦不符合自己的事件逻辑就交给父View去处理
+                 if ("还是交给父View处理吧") {
                      parent.requestDisallowInterceptTouchEvent(false) 
                 }
             }
@@ -324,7 +352,8 @@ override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
 
 ```java
 override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        return ev.action != MotionEvent.ACTION_DOWN  //🚩重点3 一开始就拦截move、up事件 
+        //一开始就拦截move、up事件 
+        return ev.action != MotionEvent.ACTION_DOWN  
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
@@ -339,10 +368,6 @@ override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         return super.onTouchEvent(ev)
     }
 ```
-
-
-
-
 
 ------
 
@@ -387,26 +412,32 @@ override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
        }
    ```
 
-   原因：只要`View`消费`Down`事件就会被添加到`TouchTarget`链。后续`move、up`事件就会根据`TouchTarget`中的`View`来传递，它们的返回值不影响事件传递。
+   原因：只要`View`消费`Down`事件就会被添加到`TouchTarget`链。后续`move、up`事件就会根据`TouchTarget`中的`View`来传递，它们的返回值不影响事件传递，只会影响Activity.onTouchEvent执行
 
 ------
 
-## ScrollBy和ScrollTo
+## scroll
 
-> 1. `ScrollBy`和`ScrollTo`都是`内容跟随手势滑动方向的滚动`，和`Canvas`平移方向相反。如列表，手势向上滑动，内容就往上滑，Canvas就得向下平移来展示底部更多数据。
->
-> 2. `ScrollTo(100,100)`——`View`内容向右下方移动（100，100）；`ScrollBy(100,100)`——`View`内容**再次**向右下方移动（100，100）
->
->    ```java
->    public void scrollBy(int x, int y) {
->        scrollTo(mScrollX + x, mScrollY + y);
->    }
->    ```
+> 平移View的6种方式：https://www.cnblogs.com/fuly550871915/p/4985053.html
 
-**源码**
+scroll和translate的区别：
+
+- `translate`：是画布的平移。
+
+- `scroll`：内容（还是画布）滚动。本质上scroll也是canvas的平移，只不过**应用场景不同**，一般用于手指滑动场景。
+
+scrollBy和scrollTo的区别：
+
+- `ScrollBy`和`ScrollTo`都是内容滚动。
+
+- `scrollTo`相对于`View`初始位置滚动；`scrollBy`相对于最新位置滚动。
+
+**和translate方向相反问题**：
+
+直接上源码：
 
 ```java
-//View
+//View.java
 boolean draw(Canvas canvas, ViewGroup parent, long drawingTime) {
       int sx = 0;
       int sy = 0;
@@ -415,11 +446,9 @@ boolean draw(Canvas canvas, ViewGroup parent, long drawingTime) {
             sx = mScrollX;
             sy = mScrollY;
       }
-     canvas.translate(mLeft - sx, mTop - sy);//例如手势滑动向右，scroll值越大，canvas反方向平移越多，内容就向右移动越多
+     canvas.translate(mLeft - sx, mTop - sy);//scroll为正值，canvas向反方向平移
  }
 ```
-
-
 
 
 
