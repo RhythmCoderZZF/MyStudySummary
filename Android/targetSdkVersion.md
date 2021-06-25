@@ -4,8 +4,6 @@
 
 [targetSdkVersion、compileSdkVersion、minSdkVersion作用与区别](https://www.jianshu.com/p/12e42558378a)
 
-
-
 ## 案例
 
 ```java
@@ -64,4 +62,6 @@ public void startActivity(Intent intent, Bundle options) {
 
 ## 总结
 
-不同版本的Android手机会根据你App指定targetetSdkVersion来进行适配。比如Android出了新版本，新版本对老版本的API做了修改，最后产生的结果和老版本不一样，这个时候新版本会根据targetSdkVersion来做兼容，即：targetSdkVersion为老版本的还是用老的，新版本的会用新的Api。如果我们盲目升级了targetetSdkVersion，轻则新版本和老版本显示效果就会不同，重则发生crash。升级时必须做好兼容性测试。
+不同版本的Android手机会根据你App指定targetetSdkVersion来进行适配。比如Android出了新版本，新版本对老版本的API做了修改，最后产生的结果和老版本不一样，这个时候新版本会根据targetSdkVersion来做兼容，即：targetSdkVersion为老版本的还是用老的api，新版本的会用新的Api。
+
+如果我们盲目升级了targetetSdkVersion，轻则新版本和老版本显示效果就会不同，重则发生crash。升级时必须做好兼容性测试。
